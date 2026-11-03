@@ -12,23 +12,7 @@ from evaluate import evaluate
 from torch.utils.data import random_split
 from pathlib import Path
 from data import build_transform,DATA_DIR
-
-def train(args, model, device, train_loader, optimizer, epoch):
-    model.train()
-    for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(device), target.to(device)
-        optimizer.zero_grad()
-        output = model(data)
-        loss = F.nll_loss(output, target)
-        loss.backward()
-        optimizer.step()
-        if batch_idx % args.log_interval == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.item()))
-            if args.dry_run:
-                break
-
+from train import train_one_epoch
 
 def test(model, device, test_loader):
     model.eval()
@@ -69,8 +53,6 @@ def main():
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
-    parser.add_argument('--log-interval', type=int, default=10, metavar='N',
-                        help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', 
                         help='For Saving the current Model')
 
@@ -139,9 +121,11 @@ def main():
     best_model_path = Path(__file__).parent / "mnist_cnn_16ch_best.pt"
 
     for epoch in range(1, args.epochs + 1):
-        train(args, model, device, train_loader, optimizer, epoch)
-        print("验证集评估：")
+        train_loss = train_one_epoch(model, train_loader, optimizer,device,dry_run=args.dry_run)
+        print(f"Epoch{epoch}:已处理样本的平均训练损失{train_loss:.4f}")
+        print("验证机评估：")
         val_loss, val_accuracy = evaluate(model, device, val_loader)
+
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
